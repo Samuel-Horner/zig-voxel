@@ -48,10 +48,6 @@
             .url = "git+https://github.com/hexops/mach-freetype.git#359e8721d4b988d6297534164e4976a71c46ec43",
             .hash = "mach_freetype-0.0.0-AAAAALwUAgCt_Mzj28Tk-oZQ_a7BEKZ29rihRi7W70Io",
         },
-        // .cglm = .{
-        //     .url = "git+https://github.com/lilydoar/cglm.git#2f087d9316f8b8232d488051734320e4b19d4dcb",
-        //     .hash = "cglm-0.9.6-fpSrmvxBFwBiwfD9g_mPTT-_QohVJ0qEKapqqhUJcyLG",
-        // },
         .zm = .{
             .url = "https://github.com/griush/zm/archive/refs/tags/0.3.0.zip",
             .hash = "zm-0.3.0-AAAAAK3MAADEAbWaf5pV0-9RZ1KT1IMdX-XotoQv60Rw",

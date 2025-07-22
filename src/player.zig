@@ -14,7 +14,7 @@ var player_sensitivity: f32 = undefined;
 
 // ##### Uniform Getters #####
 pub fn getView() zm.Mat4f {
-    return zm.Mat4f.lookAt(player_pos, player_pos + player_cam.dir, player_cam.up);
+    return player_cam.view;
 }
 
 pub fn getProj() zm.Mat4f {
@@ -33,36 +33,42 @@ fn cursorCallback(_: engine.Window, xpos: f64, ypos: f64) void {
     }
 
     player_cam.rotate(
+        player_pos,
         @as(f32, @floatCast(xpos - prev_xpos)) * player_sensitivity, 
         -@as(f32, @floatCast(ypos - prev_ypos)) * player_sensitivity
     );
 
     prev_xpos = xpos;
     prev_ypos = ypos;
+}
 
-    log();
+fn frameBufferSizeCallback(width: u32, height: u32) void {
+    player_cam.updateProjection(width, height);
 }
 
 // ##### General Player Functions #####
-pub fn init(starting_pos: zm.Vec3f, speed: f32, sensitivity: f32, fov: f32) void {
+pub fn init(starting_pos: zm.Vec3f, speed: f32, sensitivity: f32, fov: f32) !void {
     player_speed = speed;
     player_sensitivity = sensitivity;
 
     player_pos = starting_pos;
-    player_cam.updateProjection();
-    player_cam = Cam.init(fov);
+    player_cam = Cam.init(fov, starting_pos, engine.window_width, engine.window_height);
 
     engine.window.setCursorPosCallback(cursorCallback);
+    try engine.registerFrameBufferSizeCallback(frameBufferSizeCallback);
 }
 
 pub fn tick(delta_time: f32) void {
+    const forward: zm.Vec3f = .{player_cam.dir[0], 0, player_cam.dir[2]};
+    const up: zm.Vec3f = .{0, 1, 0};
+
     var movement: zm.Vec3f = zm.vec.zero(3, f32);
 
     if (engine.keyPressed(engine.Key.w)) {
-        movement += player_cam.dir;
+        movement += forward;
     }
     if (engine.keyPressed(engine.Key.s)) {
-        movement -= player_cam.dir;
+        movement -= forward;
     }
     if (engine.keyPressed(engine.Key.d)) {
         movement += player_cam.right;
@@ -70,24 +76,25 @@ pub fn tick(delta_time: f32) void {
     if (engine.keyPressed(engine.Key.a)) {
         movement -= player_cam.right;
     }
+    if (engine.keyPressed(engine.Key.space)) {
+        movement += up;
+    }
+    if (engine.keyPressed(engine.Key.left_control)) {
+        movement -= up;
+    }
 
     // movement = zm.vec.normalize(movement);
     const len = zm.vec.len(movement);
     if (len != 0) {
         movement = zm.vec.scale(movement, delta_time * player_speed / len);
         player_pos += movement;
-        log();
+
+        player_cam.updateView(player_pos);
     }
 }
 
-pub fn log() void {
-    debug.log("POS: {d:.3}", .{player_pos});
-    debug.log("DIR: {d:.3}", .{player_cam.dir});
-    debug.log("PROJ: {d:.3}", .{getProj().data});
-    debug.log("VIEW: {d:.3}", .{getView().data});
-}
-
 const Cam = struct {
+    view: zm.Mat4f,
     proj: zm.Mat4f,
 
     yaw: f32,
@@ -99,7 +106,7 @@ const Cam = struct {
 
     fov: f32,
 
-    fn rotate(cam: *Cam, yaw: f32, pitch: f32) void {
+    fn rotate(cam: *Cam, pos: zm.Vec3f, yaw: f32, pitch: f32) void {
         cam.yaw += yaw;
         cam.pitch = m.clamp(cam.pitch + pitch, -89, 89);
     
@@ -117,21 +124,29 @@ const Cam = struct {
         cam.right = zm.vec.normalize(zm.vec.cross(cam.dir, zm.vec.up(f32)));
         cam.up = zm.vec.normalize(zm.vec.cross(cam.right, cam.dir));
 
-        debug.log("LENS: {} {}", .{zm.vec.len(cam.right), zm.vec.len(cam.up)});
+        cam.updateView(pos);
     }
 
-    fn updateProjection(cam: *Cam) void {
-        debug.log("Updating camera perspective with width / height: {}x{}", .{engine.window_width, engine.window_height});
-        cam.proj = zm.Mat4f.perspective(
+    fn updateView(cam: *Cam, pos: zm.Vec3f) void {
+        cam.view = zm.Mat4f.transpose(zm.Mat4f.lookAt(
+            pos, 
+            pos + cam.dir, 
+            cam.up
+        ));
+    }
+
+    fn updateProjection(cam: *Cam, width: u32, height: u32) void {
+        cam.proj = zm.Mat4f.transpose(zm.Mat4f.perspective(
             cam.fov, 
-            @as(f32, @floatFromInt(engine.window_width)) / @as(f32, @floatFromInt(engine.window_height)), 
+            @as(f32, @floatFromInt(width)) / @as(f32, @floatFromInt(height)), 
             0.1, 
             1000
-        );
+        ));
     }
 
-    fn init(fov: f32) Cam {
+    fn init(fov: f32, pos: zm.Vec3f, width: u32, height: u32) Cam {
         var cam: Cam = .{
+            .view = zm.Mat4f.zero(),
             .proj = zm.Mat4f.zero(),
 
             .yaw = 90,
@@ -144,8 +159,8 @@ const Cam = struct {
             .fov = m.degreesToRadians(fov)
         };
 
-        cam.rotate(0, 0);
-        cam.updateProjection();
+        cam.rotate(pos, 0, 0);
+        cam.updateProjection(width, height);
 
         return cam;
     }

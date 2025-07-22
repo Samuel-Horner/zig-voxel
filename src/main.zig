@@ -69,17 +69,15 @@ pub fn main() !void {
     try args.parse();
 
     // ##### Engine Init #####
-    try engine.init(1200, 800,
-        ([_]engine.SizeCallback{ testCallback })[0..],
+    try engine.init(1200, 800, "JetBrainsMonoNerdFont-Regular.ttf",
         .{
             .force_wayland = args.force_wayland
         }
     );
-    defer engine.destroy();
+    defer engine.deinit();
 
     // ##### Player Init #####
-    player.init(.{0, 0, -1}, 10, 0.05, 90);
-    player.log();
+    try player.init(.{0, 0, -1}, 10, 0.05, 90);
 
     // ##### Hello Tzig array of function bodiesriangle #####
     // Gen Buffers

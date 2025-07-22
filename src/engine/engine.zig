@@ -1,10 +1,11 @@
 //! Engine file, contains OpenGL boilerplate methods and GLFW window operations
 const std = @import("std");
 
-const debug = @import("../debug.zig");
-
 const glfw = @import("glfw");
 const gl = @import("gl");
+
+const debug = @import("../debug.zig");
+const text = @import("text.zig");
 
 // Export types to avoid needing to seperately import glfw
 pub const Key = glfw.Key;
@@ -25,10 +26,15 @@ fn glfwErrorCallback(error_code: glfw.ErrorCode, description: [:0]const u8) void
     });
 }
 
-pub const SizeCallback = fn (u32, u32) void;
+pub const SizeCallback = *const fn (u32, u32) void;
 
 var callback_gpa: std.heap.GeneralPurposeAllocator(.{}) = undefined;
 var size_callbacks: std.ArrayList(SizeCallback) = undefined;
+
+pub fn registerFrameBufferSizeCallback(callback: SizeCallback) !void {
+    try size_callbacks.append(callback);
+    debug.log("Registered new frame buffer size callback.", .{});
+}
 
 fn glfwFrameBufferSizeCallback(_: glfw.Window, width: u32, height: u32) void {
     window_width = width;
@@ -44,18 +50,7 @@ fn glfwFrameBufferSizeCallback(_: glfw.Window, width: u32, height: u32) void {
     }
 }
 
-// fn glfwKeyCallback(_: glfw.Window, key: glfw.Key, scancode: i32, action: glfw.Action, mods: glfw.Mods) void {
-//     _ = scancode;
-//     _ = mods;
-// 
-//     if (action != glfw.Action.press) { return; }
-// 
-//     debug.log("{s}", .{
-//         @tagName(key)
-//     });
-// }
-
-pub fn init(width: u32, height: u32, frame_size_callbacks: []SizeCallback, opts: struct {force_wayland: bool = false}) !void {
+pub fn init(width: u32, height: u32, comptime font_name: []const u8, opts: struct {force_wayland: bool = false}) !void {
     // ##### Initialise window #####
     window_width = width;
     window_height = height;
@@ -86,8 +81,6 @@ pub fn init(width: u32, height: u32, frame_size_callbacks: []SizeCallback, opts:
     callback_gpa = std.heap.GeneralPurposeAllocator(.{}){};
     size_callbacks = std.ArrayList(SizeCallback).init(callback_gpa.allocator());
 
-    try size_callbacks.appendSlice(frame_size_callbacks);
-
     window.setFramebufferSizeCallback(glfwFrameBufferSizeCallback);
     
     debug.log("Created GLFW Context: {s}.", .{
@@ -114,17 +107,24 @@ pub fn init(width: u32, height: u32, frame_size_callbacks: []SizeCallback, opts:
     gl.ClearColor(0.43137254901960786, 0.6941176470588235, 1, 1);
 
     gl.Enable(gl.DEPTH_TEST);
-    //gl.Enable(gl.CULL_FACE);
+    // gl.Enable(gl.CULL_FACE);
 
     debug.log("GPU: {?s}.", .{
         gl.GetString(gl.RENDERER)
     });
+
+    // ##### Text Setup #####
+    try text.init(font_name, window_width, window_height);
+    try registerFrameBufferSizeCallback(text.setFaceSize);
 }
 
-pub fn destroy() void {
+pub fn deinit() void {
     // Free Callback Allocators
     size_callbacks.deinit();
-    callback_gpa.deinit();
+    _ = callback_gpa.deinit();
+
+    // Destroy FreeType Resources
+    text.deinit();
 
     // Destroy OpenGL resources
     gl.makeProcTableCurrent(null);
