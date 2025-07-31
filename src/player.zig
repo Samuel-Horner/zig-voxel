@@ -2,6 +2,7 @@ const std = @import("std");
 const m = std.math;
 
 const zm = @import("zm");
+const gl = @import("gl");
 
 const debug = @import("debug.zig");
 const engine = @import("engine/engine.zig");
@@ -12,13 +13,13 @@ var player_cam: Cam = undefined;
 var player_speed: f32 = undefined;
 var player_sensitivity: f32 = undefined;
 
-// ##### Uniform Getters #####
-pub fn getView() zm.Mat4f {
-    return player_cam.view;
+// ##### Apply Uniforms #####
+pub fn applyView(location: c_int) void {
+    gl.UniformMatrix4fv(location, 1, gl.FALSE, @ptrCast(&player_cam.view.data));
 }
 
-pub fn getProj() zm.Mat4f {
-    return player_cam.proj;
+pub fn applyProj(location: c_int) void {
+    gl.UniformMatrix4fv(location, 1, gl.FALSE, @ptrCast(&player_cam.proj.data));
 }
 
 // ##### Callbacks #####
@@ -32,11 +33,7 @@ fn cursorCallback(_: engine.Window, xpos: f64, ypos: f64) void {
         first_input = false;
     }
 
-    player_cam.rotate(
-        player_pos,
-        @as(f32, @floatCast(xpos - prev_xpos)) * player_sensitivity, 
-        -@as(f32, @floatCast(ypos - prev_ypos)) * player_sensitivity
-    );
+    player_cam.rotate(player_pos, @as(f32, @floatCast(xpos - prev_xpos)) * player_sensitivity, -@as(f32, @floatCast(ypos - prev_ypos)) * player_sensitivity);
 
     prev_xpos = xpos;
     prev_ypos = ypos;
@@ -59,8 +56,8 @@ pub fn init(starting_pos: zm.Vec3f, speed: f32, sensitivity: f32, fov: f32) !voi
 }
 
 pub fn tick(delta_time: f32) void {
-    const forward: zm.Vec3f = .{player_cam.dir[0], 0, player_cam.dir[2]};
-    const up: zm.Vec3f = .{0, 1, 0};
+    const forward: zm.Vec3f = .{ player_cam.dir[0], 0, player_cam.dir[2] };
+    const up: zm.Vec3f = .{ 0, 1, 0 };
 
     var movement: zm.Vec3f = zm.vec.zero(3, f32);
 
@@ -109,7 +106,7 @@ const Cam = struct {
     fn rotate(cam: *Cam, pos: zm.Vec3f, yaw: f32, pitch: f32) void {
         cam.yaw += yaw;
         cam.pitch = m.clamp(cam.pitch + pitch, -89, 89);
-    
+
         const yaw_radians = m.degreesToRadians(cam.yaw);
         const pitch_radians = m.degreesToRadians(cam.pitch);
 
@@ -120,7 +117,7 @@ const Cam = struct {
         cam.dir[2] = m.sin(yaw_radians) * m.cos(pitch_radians);
 
         cam.dir = zm.vec.normalize(cam.dir);
-        
+
         cam.right = zm.vec.normalize(zm.vec.cross(cam.dir, zm.vec.up(f32)));
         cam.up = zm.vec.normalize(zm.vec.cross(cam.right, cam.dir));
 
@@ -128,36 +125,15 @@ const Cam = struct {
     }
 
     fn updateView(cam: *Cam, pos: zm.Vec3f) void {
-        cam.view = zm.Mat4f.transpose(zm.Mat4f.lookAt(
-            pos, 
-            pos + cam.dir, 
-            cam.up
-        ));
+        cam.view = zm.Mat4f.lookAt(pos, pos + cam.dir, cam.up).transpose();
     }
 
     fn updateProjection(cam: *Cam, width: u32, height: u32) void {
-        cam.proj = zm.Mat4f.transpose(zm.Mat4f.perspective(
-            cam.fov, 
-            @as(f32, @floatFromInt(width)) / @as(f32, @floatFromInt(height)), 
-            0.1, 
-            1000
-        ));
+        cam.proj = zm.Mat4f.perspective(cam.fov, @as(f32, @floatFromInt(width)) / @as(f32, @floatFromInt(height)), 0.1, 1000).transpose();
     }
 
     fn init(fov: f32, pos: zm.Vec3f, width: u32, height: u32) Cam {
-        var cam: Cam = .{
-            .view = zm.Mat4f.zero(),
-            .proj = zm.Mat4f.zero(),
-
-            .yaw = 90,
-            .pitch = 0,
-
-            .dir = zm.vec.zero(3, f32),
-            .right = zm.vec.zero(3, f32),
-            .up = zm.vec.zero(3, f32),
-
-            .fov = m.degreesToRadians(fov)
-        };
+        var cam: Cam = .{ .view = zm.Mat4f.zero(), .proj = zm.Mat4f.zero(), .yaw = 90, .pitch = 0, .dir = zm.vec.zero(3, f32), .right = zm.vec.zero(3, f32), .up = zm.vec.zero(3, f32), .fov = m.degreesToRadians(fov) };
 
         cam.rotate(pos, 0, 0);
         cam.updateProjection(width, height);

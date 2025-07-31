@@ -6,6 +6,7 @@ const gl = @import("gl");
 const zm = @import("zm");
 
 const engine = @import("engine/engine.zig");
+const text = @import("engine/text.zig");
 const world = @import("world.zig");
 const debug = @import("debug.zig");
 const player = @import("player.zig");
@@ -14,46 +15,47 @@ const args = @import("args.zig");
 // const vertex_source: []const u8 = @embedFile("shader/text_vert.glsl");
 // const fragment_source: []const u8 = @embedFile("shader/text_frag.glsl");
 
-const vertex_source: []const u8 = 
-\\  #version 460 core
-\\  
-\\  uniform mat4 view;
-\\  uniform mat4 proj;
-\\
-\\  layout (location = 0) in vec3 vertex_pos;
-\\  
-\\  void main()
-\\  {    
-\\      gl_Position = proj * view * vec4(vertex_pos, 1.);
-\\  }  
+const vertex_source: []const u8 =
+    \\  #version 460 core
+    \\  
+    \\  uniform mat4 view;
+    \\  uniform mat4 proj;
+    \\
+    \\  layout (location = 0) in vec3 vertex_pos;
+    \\  
+    \\  void main()
+    \\  {    
+    \\      gl_Position = proj * view * vec4(vertex_pos, 1.);
+    \\  }  
 ;
-const fragment_source: []const u8 = 
-\\  #version 460 core
-\\  
-\\  out vec4 color;
-\\
-\\  void main()
-\\  {
-\\      color = vec4(1.);
-\\  }  
+const fragment_source: []const u8 =
+    \\  #version 460 core
+    \\  
+    \\  out vec4 color;
+    \\
+    \\  void main()
+    \\  {
+    \\      color = vec4(1.);
+    \\  }  
 ;
 
-const vertices = [_]f32{
-    -0.5, -0.5, 0.0,
-     0.5, -0.5, 0.0,
-     0.0,  0.5, 0.0 
-};
-
-fn testCallback(_: u32, _: u32) void {
-    debug.log("WWWEAWEAW", .{});
-}
+const vertices = [_]f32{ -0.5, -0.5, 0.0, 0.5, -0.5, 0.0, 0.0, 0.5, 0.0 };
+const indicies = [_]c_uint{ 0, 1, 2 };
 
 pub fn main() !void {
+    // ##### Allocator Setup #####
+    var gpa = std.heap.GeneralPurposeAllocator(.{}).init;
+    // defer {
+    //     const gpa_deinit_status = gpa.deinit();
+    //     if (gpa_deinit_status == .leak) { debug.err("GPA detected memory leaks when deinit-ing.", .{}); }
+    // }
+    defer if (gpa.deinit() == .leak) {
+        debug.err("GPA detected memory leaks when deinit-ing.", .{});
+    };
+
     // ##### Debug Info #####
     // Zig version
-    debug.log("Zig {s}.", .{
-        builtin.zig_version_string
-    });
+    debug.log("Zig {s}.", .{builtin.zig_version_string});
 
     // // CWD
     // // TODO: Find a better way to do this
@@ -69,45 +71,45 @@ pub fn main() !void {
     try args.parse();
 
     // ##### Engine Init #####
-    try engine.init(1200, 800, "JetBrainsMonoNerdFont-Regular.ttf",
-        .{
-            .force_wayland = args.force_wayland
-        }
-    );
+    try engine.init(1200, 800, "JetBrainsMonoNerdFont-Regular.ttf", gpa.allocator(), .{ .force_wayland = args.force_wayland });
     defer engine.deinit();
 
     // ##### Player Init #####
-    try player.init(.{0, 0, -1}, 10, 0.05, 90);
+    try player.init(.{ 0, 0, -1 }, 10, 0.05, 90);
 
-    // ##### Hello Tzig array of function bodiesriangle #####
-    // Gen Buffers
-    var vbo: c_uint = undefined;
-    gl.GenBuffers(1, (&vbo)[0..1]);
-    
-    var vao: c_uint = undefined;
-    gl.GenVertexArrays(1, (&vao)[0..1]);
-
-    gl.BindVertexArray(vao);
-
-    gl.BindBuffer(gl.ARRAY_BUFFER, vbo);
-    gl.BufferData(gl.ARRAY_BUFFER, @sizeOf(@TypeOf(vertices)), &vertices, gl.STATIC_DRAW);
-    // Bind Buffers
-    gl.VertexAttribPointer(0, 3, gl.FLOAT, gl.FALSE, @sizeOf(f32) * 3, 0);
-    gl.EnableVertexAttribArray(0);
+    // ##### Hello triangle #####
+    var vertex_buffer = engine.VertexBuffer.init(vertices[0..], indicies[0..], &.{3}, .{});
 
     // Create Program
     var program: engine.Program = try engine.Program.init(vertex_source, fragment_source);
+    defer program.deinit();
 
-    const view = gl.GetUniformLocation(program.id, "view");
-    const proj = gl.GetUniformLocation(program.id, "proj");
+    // Since we will allways set both every frame, no need to store uniform indexes.
+    _ = try program.registerUniform("view", player.applyView);
+    _ = try program.registerUniform("proj", player.applyProj);
 
     // ##### Timer Init #####
     var frame_timer = try std.time.Timer.start();
+    var debug_info_timer = try std.time.Timer.start();
 
     // ##### Render Loop #####
+    var f11_down = false;
+
+    var frame_count: u32 = 0;
+    var fps: u32 = 0;
+
     while (!engine.window.shouldClose()) {
         if (engine.keyPressed(engine.Key.escape)) {
             engine.window.setShouldClose(true);
+        }
+
+        if (engine.keyPressed(engine.Key.F11)) {
+            if (!f11_down) {
+                engine.toggleFullScreen();
+                f11_down = true;
+            }
+        } else {
+            f11_down = false;
         }
 
         // Time Methods
@@ -120,12 +122,22 @@ pub fn main() !void {
         engine.clearViewport();
 
         program.use();
-        gl.BindVertexArray(vao);
+        program.applyAllUniforms();
 
-        gl.UniformMatrix4fv(view, 1, gl.FALSE, @ptrCast(&player.getView().data));
-        gl.UniformMatrix4fv(proj, 1, gl.FALSE, @ptrCast(&player.getProj().data));
+        vertex_buffer.draw();
 
-        gl.DrawArrays(gl.TRIANGLES, 0, 3);
+        // Steady Debug Hud
+        frame_count += 1;
+        if (debug_info_timer.read() > 1e9) {
+            fps = frame_count;
+            frame_count = 0;
+
+            _ = debug_info_timer.lap();
+        }
+
+        var debug_str_buf: [128]u8 = undefined;
+        const debug_str = std.fmt.bufPrint(&debug_str_buf, "FPS: {}", .{fps}) catch "Buffer Print Error";
+        text.renderText(debug_str, .{ 10, 10 }, 1);
 
         engine.window.swapBuffers();
         glfw.pollEvents();

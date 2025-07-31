@@ -13,15 +13,21 @@ pub fn parse() !void {
 
     for (args[1..]) |arg| {
         // debug.log("Parsing Argument: {s}", .{arg});
-        
+
         // Long form flags
         if (std.mem.eql(u8, arg[0..2], "--")) {
-            if (std.mem.eql(u8, arg, "--force-wayland")) { force_wayland = true; continue; }
+            if (std.mem.eql(u8, arg, "--force-wayland")) {
+                force_wayland = true;
+                continue;
+            }
         }
         // Short form flags
         else if (arg[0] == '-') {
             for (arg[1..]) |flag| {
-                if (flag == 'w') { force_wayland = true; continue; }
+                if (flag == 'w') {
+                    force_wayland = true;
+                    continue;
+                }
 
                 debug.err("Unkwon flag: {c}", .{flag});
             }
