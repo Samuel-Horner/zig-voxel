@@ -2,7 +2,8 @@
 const std = @import("std");
 
 const glfw = @import("glfw");
-const gl = @import("gl");
+// Allows using gl functions with engine.gl
+pub const gl = @import("gl");
 
 const debug = @import("../debug.zig");
 const text = @import("text.zig");
@@ -191,14 +192,21 @@ pub const VertexBuffer = struct {
 };
 
 // ##### Uniform Struct #####
-pub const UniformFunction = *const fn (c_int) void;
+pub const UniformFunction = union {
+    basic: *const fn (c_int) void,
+    owned: *const fn (*anyopaque, c_int) void,
+};
 
 pub const Uniform = struct {
     location: c_int,
     function: UniformFunction,
 
+    fn applyOwned(uniform: *const Uniform, owner: *anyopaque) void {
+        uniform.function.owned(owner, uniform.location);
+    }
+
     fn apply(uniform: *const Uniform) void {
-        uniform.function(uniform.location);
+        uniform.function.basic(uniform.location);
     }
 
     fn init(location: c_int, function: UniformFunction) Uniform {
@@ -297,6 +305,10 @@ pub const Program = struct {
 
     pub fn applyUniform(program: *Program, uniform: usize) void {
         program.uniforms.items[uniform].apply();
+    }
+
+    pub fn applyOwnedUniform(program: *Program, uniform: usize, owner: *anyopaque) void {
+        program.uniforms.items[uniform].applyOwned(owner);
     }
 
     pub fn deinit(program: *Program) void {

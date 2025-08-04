@@ -128,7 +128,7 @@ pub fn init(comptime font_name: []const u8) !void {
     // ##### Create Text Program #####
     text_program = try engine.Program.init(@embedFile("../shader/text_vert.glsl"), @embedFile("../shader/text_frag.glsl"));
 
-    text_projection_uniform = try text_program.registerUniform("projection", applyTextProjection);
+    text_projection_uniform = try text_program.registerUniform("projection", .{.basic = applyTextProjection});
     updateTextProjection(engine.window_width, engine.window_height);
 
     // ##### Create Text Vertex Buffer #####
@@ -164,7 +164,7 @@ pub fn renderText(text: []const u8, pos: zm.Vec2f, scale: f32) void {
 
     for (text) |char| {
         if (char == '\n') {
-            draw_pos[1] += (chars['H'].top + 1) * scale_mod;
+            draw_pos[1] += (chars['H'].top + 16) * scale_mod;
             draw_pos[0] = pos[0];
             continue;
         }

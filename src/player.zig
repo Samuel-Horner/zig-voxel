@@ -2,24 +2,33 @@ const std = @import("std");
 const m = std.math;
 
 const zm = @import("zm");
-const gl = @import("gl");
 
 const debug = @import("debug.zig");
 const engine = @import("engine/engine.zig");
 
-var player_pos: zm.Vec3f = undefined;
-var player_cam: Cam = undefined;
+pub var player_pos: zm.Vec3f = undefined;
+pub var player_cam: Cam = undefined;
 
 var player_speed: f32 = undefined;
 var player_sensitivity: f32 = undefined;
 
 // ##### Apply Uniforms #####
 pub fn applyView(location: c_int) void {
-    gl.UniformMatrix4fv(location, 1, gl.FALSE, @ptrCast(&player_cam.view.data));
+    engine.gl.UniformMatrix4fv(
+        location,
+        1,
+        engine.gl.FALSE,
+        @ptrCast(&player_cam.view.data),
+    );
 }
 
 pub fn applyProj(location: c_int) void {
-    gl.UniformMatrix4fv(location, 1, gl.FALSE, @ptrCast(&player_cam.proj.data));
+    engine.gl.UniformMatrix4fv(
+        location,
+        1,
+        engine.gl.FALSE,
+        @ptrCast(&player_cam.proj.data),
+    );
 }
 
 // ##### Callbacks #####
@@ -33,7 +42,11 @@ fn cursorCallback(_: engine.Window, xpos: f64, ypos: f64) void {
         first_input = false;
     }
 
-    player_cam.rotate(player_pos, @as(f32, @floatCast(xpos - prev_xpos)) * player_sensitivity, -@as(f32, @floatCast(ypos - prev_ypos)) * player_sensitivity);
+    player_cam.rotate(
+        player_pos,
+        @as(f32, @floatCast(xpos - prev_xpos)) * player_sensitivity,
+        -@as(f32, @floatCast(ypos - prev_ypos)) * player_sensitivity,
+    );
 
     prev_xpos = xpos;
     prev_ypos = ypos;

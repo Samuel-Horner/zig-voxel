@@ -77,16 +77,24 @@ pub fn main() !void {
     // ##### Player Init #####
     try player.init(.{ 0, 0, -1 }, 10, 0.05, 90);
 
-    // ##### Hello triangle #####
-    var vertex_buffer = engine.VertexBuffer.init(vertices[0..], indicies[0..], &.{3}, .{});
+    // ##### World Init #####
+    try world.init(gpa.allocator());
+    defer world.deinint();
 
-    // Create Program
-    var program: engine.Program = try engine.Program.init(vertex_source, fragment_source);
-    defer program.deinit();
+    try world.loadChunk(.{ 0, 0, 0 });
+    try world.loadChunk(.{ 0, 0, 1 });
+    try world.loadChunk(.{ 0, 1, 0 });
 
-    // Since we will allways set both every frame, no need to store uniform indexes.
-    _ = try program.registerUniform("view", player.applyView);
-    _ = try program.registerUniform("proj", player.applyProj);
+    // // ##### Hello triangle #####
+    // var vertex_buffer = engine.VertexBuffer.init(vertices[0..], indicies[0..], &.{3}, .{});
+    //
+    // // Create Program
+    // var program: engine.Program = try engine.Program.init(vertex_source, fragment_source);
+    // defer program.deinit();
+    //
+    // // Since we will allways set both every frame, no need to store uniform indexes.
+    // _ = try program.registerUniform("view", player.applyView);
+    // _ = try program.registerUniform("proj", player.applyProj);
 
     // ##### Timer Init #####
     var frame_timer = try std.time.Timer.start();
@@ -121,10 +129,7 @@ pub fn main() !void {
         // Render
         engine.clearViewport();
 
-        program.use();
-        program.applyAllUniforms();
-
-        vertex_buffer.draw();
+        world.render();
 
         // Steady Debug Hud
         frame_count += 1;
@@ -136,7 +141,18 @@ pub fn main() !void {
         }
 
         var debug_str_buf: [128]u8 = undefined;
-        const debug_str = std.fmt.bufPrint(&debug_str_buf, "FPS: {}", .{fps}) catch "Buffer Print Error";
+        const debug_str = std.fmt.bufPrint(
+            &debug_str_buf,
+            "FPS: {}\nx:{d:.3} y:{d:.3} z:{d:.3}\nyaw:{d:.3} pitch:{d:.3}",
+            .{
+                fps,
+                player.player_pos[0],
+                player.player_pos[1],
+                player.player_pos[2],
+                player.player_cam.yaw,
+                player.player_cam.pitch,
+            },
+        ) catch "Buffer Print Error";
         text.renderText(debug_str, .{ 10, 10 }, 1);
 
         engine.window.swapBuffers();
