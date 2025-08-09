@@ -82,19 +82,8 @@ pub fn main() !void {
     defer world.deinint();
 
     try world.loadChunk(.{ 0, 0, 0 });
-    try world.loadChunk(.{ 0, 0, 1 });
-    try world.loadChunk(.{ 0, 1, 0 });
-
-    // // ##### Hello triangle #####
-    // var vertex_buffer = engine.VertexBuffer.init(vertices[0..], indicies[0..], &.{3}, .{});
-    //
-    // // Create Program
-    // var program: engine.Program = try engine.Program.init(vertex_source, fragment_source);
-    // defer program.deinit();
-    //
-    // // Since we will allways set both every frame, no need to store uniform indexes.
-    // _ = try program.registerUniform("view", player.applyView);
-    // _ = try program.registerUniform("proj", player.applyProj);
+    // try world.loadChunk(.{ 0, 0, 1 });
+    // try world.loadChunk(.{ 0, 1, 0 });
 
     // ##### Timer Init #####
     var frame_timer = try std.time.Timer.start();
@@ -118,6 +107,12 @@ pub fn main() !void {
             }
         } else {
             f11_down = false;
+        }
+
+        if (engine.keyPressed(engine.Key.q)) {
+            engine.gl.PolygonMode(engine.gl.FRONT_AND_BACK, engine.gl.LINE);
+        } else {
+            engine.gl.PolygonMode(engine.gl.FRONT_AND_BACK, engine.gl.FILL);
         }
 
         // Time Methods

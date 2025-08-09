@@ -164,7 +164,7 @@ pub fn renderText(text: []const u8, pos: zm.Vec2f, scale: f32) void {
 
     for (text) |char| {
         if (char == '\n') {
-            draw_pos[1] += (chars['H'].top + 16) * scale_mod;
+            draw_pos[1] += (chars['H'].top + 32) * scale_mod;
             draw_pos[0] = pos[0];
             continue;
         }

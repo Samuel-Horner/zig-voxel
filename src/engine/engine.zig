@@ -20,6 +20,7 @@ pub var window_width: u32 = undefined;
 pub var window_height: u32 = undefined;
 
 var procs: gl.ProcTable = undefined;
+var empty_vao: c_uint = undefined;
 
 // ##### Callbacks #####
 fn glfwErrorCallback(error_code: glfw.ErrorCode, description: [:0]const u8) void {
@@ -99,7 +100,10 @@ pub fn init(width: u32, height: u32, comptime font_name: []const u8, engine_allo
     gl.ClearColor(0.43137254901960786, 0.6941176470588235, 1, 1);
 
     gl.Enable(gl.DEPTH_TEST);
-    // gl.Enable(gl.CULL_FACE);
+    gl.Enable(gl.CULL_FACE);
+
+    // Empty VAO needed to avoid GL_INVALID_OPERATION https://www.khronos.org/opengl/wiki/Vertex_Rendering/Rendering_Failure
+    gl.GenVertexArrays(1, (&empty_vao)[0..1]);
 
     debug.log("GPU: {?s}.", .{gl.GetString(gl.RENDERER)});
 
@@ -188,6 +192,32 @@ pub const VertexBuffer = struct {
         vertex_buffer.indices_len = @intCast(indices.len);
 
         return vertex_buffer;
+    }
+};
+
+// ##### SSBO #####
+pub const SSBO = struct {
+    ssbo: c_uint,
+    length: usize,
+
+    pub fn draw(ssbo: *const SSBO, bind_point: c_uint, draw_amount: c_int) void {
+        gl.BindVertexArray(empty_vao);
+        gl.BindBufferBase(gl.SHADER_STORAGE_BUFFER, bind_point, ssbo.ssbo);
+
+        gl.DrawArrays(gl.TRIANGLES, 0, draw_amount);
+    }
+
+    pub fn init(comptime value_type: type, values: []value_type) SSBO {
+        var ssbo: SSBO = undefined;
+
+        gl.GenBuffers(1, (&ssbo.ssbo)[0..1]);
+        gl.BindBuffer(gl.SHADER_STORAGE_BUFFER, ssbo.ssbo);
+        
+        gl.BufferData(gl.SHADER_STORAGE_BUFFER, @intCast(values.len * @sizeOf(value_type)), values.ptr, gl.DYNAMIC_DRAW);
+
+        ssbo.length = values.len;
+
+        return ssbo;
     }
 };
 

@@ -10,6 +10,7 @@ pub var player_pos: zm.Vec3f = undefined;
 pub var player_cam: Cam = undefined;
 
 var player_speed: f32 = undefined;
+const player_sprint_mod: f32 = 2;
 var player_sensitivity: f32 = undefined;
 
 // ##### Apply Uniforms #####
@@ -96,7 +97,10 @@ pub fn tick(delta_time: f32) void {
     // movement = zm.vec.normalize(movement);
     const len = zm.vec.len(movement);
     if (len != 0) {
-        movement = zm.vec.scale(movement, delta_time * player_speed / len);
+        var modifier = delta_time * player_speed / len;
+        if (engine.keyPressed(.left_shift)) { modifier *= player_sprint_mod; }
+
+        movement = zm.vec.scale(movement, modifier);
         player_pos += movement;
 
         player_cam.updateView(player_pos);
