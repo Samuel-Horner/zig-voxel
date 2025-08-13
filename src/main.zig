@@ -45,10 +45,6 @@ const indicies = [_]c_uint{ 0, 1, 2 };
 pub fn main() !void {
     // ##### Allocator Setup #####
     var gpa = std.heap.GeneralPurposeAllocator(.{}).init;
-    // defer {
-    //     const gpa_deinit_status = gpa.deinit();
-    //     if (gpa_deinit_status == .leak) { debug.err("GPA detected memory leaks when deinit-ing.", .{}); }
-    // }
     defer if (gpa.deinit() == .leak) {
         debug.err("GPA detected memory leaks when deinit-ing.", .{});
     };
@@ -75,16 +71,16 @@ pub fn main() !void {
     defer engine.deinit();
 
     // ##### Player Init #####
-    try player.init(.{ 0, 0, -1 }, 10, 0.05, 90);
+    try player.init(.{ 0, 0, 0 }, 10, 0.05, 90);
 
     // ##### World Init #####
-    try world.init(gpa.allocator());
-    defer world.deinint();
+    try world.init(gpa.allocator(), 1337, 4);
+    defer world.deinit();
 
-    try world.loadChunk(.{ 0, 0, 0 });
-    // try world.loadChunk(.{ 0, 0, 1 });
-    // try world.loadChunk(.{ 0, 1, 0 });
-
+    // try world.loadChunk(.{ 0, 0, 0 });
+    // try world.meshChunk(.{ 0, 0, 0 });
+    try world.populateAndMeshWorld(8);
+    
     // ##### Timer Init #####
     var frame_timer = try std.time.Timer.start();
     var debug_info_timer = try std.time.Timer.start();
@@ -135,24 +131,37 @@ pub fn main() !void {
             _ = debug_info_timer.lap();
         }
 
-        var debug_str_buf: [128]u8 = undefined;
-        const debug_str = std.fmt.bufPrint(
-            &debug_str_buf,
-            "FPS: {}\nx:{d:.3} y:{d:.3} z:{d:.3}\nyaw:{d:.3} pitch:{d:.3}",
-            .{
-                fps,
-                player.player_pos[0],
-                player.player_pos[1],
-                player.player_pos[2],
-                player.player_cam.yaw,
-                player.player_cam.pitch,
-            },
-        ) catch "Buffer Print Error";
-        text.renderText(debug_str, .{ 10, 10 }, 1);
+
+        if (!engine.keyPressed(.e)) {
+            var debug_str_buf: [128]u8 = undefined;
+            const debug_str = std.fmt.bufPrint(
+                &debug_str_buf,
+                "FPS: {}\nx:{d:.3} y:{d:.3} z:{d:.3}\nyaw:{d:.3} pitch:{d:.3}",
+                .{
+                    fps,
+                    player.player_pos[0],
+                    player.player_pos[1],
+                    player.player_pos[2],
+                    player.player_cam.yaw,
+                    player.player_cam.pitch,
+                },
+            ) catch "Buffer Print Error";
+            text.renderText(debug_str, .{ 10, 10 }, 1);
+        }
 
         engine.window.swapBuffers();
         glfw.pollEvents();
     }
 
     debug.log("Finished.", .{});
+}
+
+test "test" {
+    _ = @import("args.zig");
+    _ = @import("debug.zig");
+    _ = @import("player.zig");
+    _ = @import("engine/engine.zig");
+    _ = @import("engine/text.zig");
+    _ = @import("voxels.zig");
+    _ = @import("world.zig");
 }

@@ -2,6 +2,8 @@
 
 A work-in-progress voxel engine in Zig (0.14.1 at time of writing). This is developed targeting Linux, but due to the nature of Zig being highly cross-platform, should be buildable for other platforms.
 
+![Current Progress](images/13-08-2025.png)
+
 ## Dependencies
 The following are included in [build.zig.zon](./build.zig.zon) and are therefore automatically sourced:
 
@@ -13,6 +15,8 @@ Zig GLFW bindings
 Zig FreeType and HarfBuzz bindings
 - [zm](https://github.com/griush/zm)  
 SIMD Zig maths library
+- [znoise](https://github.com/zig-gamedev/znoise?tab=readme-ov-file)  
+Zig bindings for FastNoiseLite
 
 ## Roadmap
 Currently still porting behaviour from [c-voxel](https://github.com/Samuel-Horner/c-voxel). Once done, this codebase will be focused on in future development.
@@ -20,6 +24,6 @@ Currently still porting behaviour from [c-voxel](https://github.com/Samuel-Horne
 Current Progress:
 - Basic text rendering: DONE
 - Player / Camera movement: DONE
-- Core engine: 75%
-- Chunk meshing and rendering: 50%
-- World Generation: 0%
+- Core engine: DONE
+- Chunk meshing and rendering: DONE
+- World Generation: 25%

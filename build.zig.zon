@@ -52,6 +52,10 @@
             .url = "https://github.com/griush/zm/archive/refs/tags/0.3.0.zip",
             .hash = "zm-0.3.0-AAAAAK3MAADEAbWaf5pV0-9RZ1KT1IMdX-XotoQv60Rw",
         },
+        .znoise = .{
+            .url = "git+https://github.com/zig-gamedev/znoise.git#76724581c99be0b2f6aa43eb8b63d6f27bada27e",
+            .hash = "znoise-0.3.0-dev-gK1op6KkAQCdq8ZRO_VfIrjCdskBgnoPO4V5W43lvmoT",
+        },
     },
     .paths = .{
         "build.zig",

@@ -16,7 +16,9 @@ pub fn isOpaque(voxel: u32) bool {
 pub const voxel_registry = [_]Voxel{
     .{ .id = 0, .name = "Empty", .@"opaque" = false },
     .{ .id = 1, .name = "Solid", .@"opaque" = true },
+    .{ .id = 2, .name = "Special", .@"opaque" = true },
 };
 
 pub const empty: u32 = 0;
 pub const solid: u32 = 1;
+pub const special: u32 = 2;
