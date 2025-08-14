@@ -74,7 +74,7 @@ pub fn main() !void {
     try player.init(.{ 0, 0, 0 }, 10, 0.05, 90);
 
     // ##### World Init #####
-    try world.init(gpa.allocator(), 1337, 4, 4);
+    try world.init(gpa.allocator(), 1337, 4, 16);
     defer world.deinit();
 
     // try world.loadChunk(.{ 0, 0, 0 });
@@ -118,7 +118,7 @@ pub fn main() !void {
         player.tick(delta_time);
 
         // World Tick
-        world.tick();
+        // world.tick();
 
         // Render
         engine.clearViewport();
@@ -157,6 +157,14 @@ pub fn main() !void {
     }
 
     debug.log("Finished.", .{});
+}
+
+fn client_main() void {
+    
+}
+
+fn server_main() void {
+
 }
 
 test "test" {

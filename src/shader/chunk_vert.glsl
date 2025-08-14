@@ -51,6 +51,15 @@ const uint face_indices[36] = {
         5, 6, 7
     };
 
+const float voxel_tints[6] = {
+    0.95, // X+
+    0.95, // X-
+    1.0, // Y+
+    0.8, // Y-
+    0.9, // Z+
+    0.9  // Z-
+};
+
 out vec3 vert_color;
 
 void main() {
@@ -76,5 +85,5 @@ void main() {
     const vec3 vert_pos = face_pos + vert_offsets[vert_offset_index];
 
     gl_Position = proj * view * model * vec4(vert_pos, 1.);
-    vert_color = col;
+    vert_color = col * voxel_tints[face_id];
 }

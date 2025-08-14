@@ -19,11 +19,10 @@ SIMD Zig maths library
 Zig bindings for FastNoiseLite
 
 ## Roadmap
-Currently still porting behaviour from [c-voxel](https://github.com/Samuel-Horner/c-voxel). Once done, this codebase will be focused on in future development.
+Finished porting behaviour from [c-voxel](https://github.com/Samuel-Horner/c-voxel). This codebase is now the focus of future development.
 
-Current Progress:
-- Basic text rendering: DONE
-- Player / Camera movement: DONE
-- Core engine: DONE
-- Chunk meshing and rendering: DONE
-- World Generation: 25%
+Future work:
+- Multithreading for world ticking
+- Expanded terrain generation
+- Voxel editing
+- Player physics

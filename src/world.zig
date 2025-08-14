@@ -61,22 +61,33 @@ fn populateChunk(pos: zm.vec.Vec(3, i32)) [CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE]
     const chunk_world_pos: zm.vec.Vec(3, i32) = zm.vec.scale(pos, CHUNK_SIZE);
 
     for (0..CHUNK_SIZE) |x| {
-        for (0..CHUNK_SIZE) |y| {
-            for (0..CHUNK_SIZE) |z| {
-                const voxel_pos = zm.vec.Vec(3, i32){ @intCast(x), @intCast(y), @intCast(z) } + chunk_world_pos;
+        for (0..CHUNK_SIZE) |z| {
+            const voxel_column: zm.vec.Vec(2, i32) = .{
+                chunk_world_pos[0] + @as(i32, @intCast(x)),
+                chunk_world_pos[2] + @as(i32, @intCast(z)),
+            };
 
+            const scaled_height: u32 = height * CHUNK_SIZE;
+            const scaled_noise_value: f32 = gen.noise2(
+                @floatFromInt(voxel_column[0]),
+                @floatFromInt(voxel_column[1]),
+            ) * @as(f32, @floatFromInt(scaled_height / 2));
+            const height_value: i32 = @as(i32, @intCast((scaled_height / 2))) + @as(i32, @intFromFloat(scaled_noise_value));
+
+            for (0..CHUNK_SIZE) |y| {
                 const index = Chunk.getVoxelIndex(x, y, z);
+                const world_y: u32 = @as(u32, @intCast(y)) + @as(u32, @intCast(chunk_world_pos[1]));
 
-                const cutoff = gen.noise3(
-                    @floatFromInt(voxel_pos[0]),
-                    @floatFromInt(voxel_pos[1]),
-                    @floatFromInt(voxel_pos[2]),
-                );
-
-                if (cutoff < 0) {
+                if (world_y > height_value) {
                     chunk_voxels[index] = voxels.empty;
                 } else {
-                    chunk_voxels[index] = voxels.solid;
+                    if (world_y < @as(usize, @intFromFloat(@as(f32, @floatFromInt(scaled_height)) * 0.5))) {
+                        chunk_voxels[index] = voxels.grass;
+                    } else if (world_y < @as(usize, @intFromFloat(@as(f32, @floatFromInt(scaled_height)) * 0.75))) {
+                        chunk_voxels[index] = voxels.stone;
+                    } else {
+                        chunk_voxels[index] = voxels.snow;
+                    }
                 }
             }
         }
@@ -160,6 +171,19 @@ pub fn render() void {
     var iter = chunk_map.valueIterator();
 
     while (iter.next()) |chunk| {
+        // Basic frustum culling based on view direction
+        const world_chunk_pos: zm.vec.Vec3f = .{
+            @floatFromInt(chunk.pos[0] * CHUNK_SIZE + (CHUNK_SIZE / 2)),
+            @floatFromInt(chunk.pos[1] * CHUNK_SIZE + (CHUNK_SIZE / 2)),
+            @floatFromInt(chunk.pos[2] * CHUNK_SIZE + (CHUNK_SIZE / 2)),
+        };
+        const chunk_to_cam = world_chunk_pos - player.player_pos;
+        if (zm.vec.lenSq(chunk_to_cam) > (2 * CHUNK_SIZE) * (2 * CHUNK_SIZE)) {
+            if (zm.vec.dot(player.player_cam.dir, chunk_to_cam) < 0) {
+                continue;
+            }
+        }
+
         chunk.render();
     }
 }
@@ -359,6 +383,8 @@ pub const Chunk = struct {
                         continue;
                     }
 
+                    const voxel_color = voxels.color(voxel);
+
                     const voxel_world_pos: zm.vec.Vec(3, i32) = .{
                         @as(i32, @intCast(x)) + chunk.pos[0] * CHUNK_SIZE,
                         @as(i32, @intCast(y)) + chunk.pos[1] * CHUNK_SIZE,
@@ -376,9 +402,9 @@ pub const Chunk = struct {
                             .x = @intCast(x),
                             .y = @intCast(y),
                             .z = @intCast(z),
-                            .r = @intCast(x),
-                            .g = @intCast(y),
-                            .b = @intCast(z),
+                            .r = voxel_color.r,
+                            .g = voxel_color.g,
+                            .b = voxel_color.b,
                             .face_id = @intCast(face),
                             .flags = 0,
                         });
