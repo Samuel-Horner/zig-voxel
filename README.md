@@ -23,6 +23,6 @@ Finished porting behaviour from [c-voxel](https://github.com/Samuel-Horner/c-vox
 
 Future work:
 - Multithreading for world ticking
-- Expanded terrain generation
+- Expanded (and optimised) terrain generation
 - Voxel editing
 - Player physics
