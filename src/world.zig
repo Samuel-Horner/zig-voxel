@@ -24,10 +24,13 @@ var projection_uniform: usize = undefined;
 
 var seed: i32 = undefined;
 var height: u32 = undefined;
+var render_distance: u32 = undefined;
 
 var gen: znoise.FnlGenerator = undefined;
 
-pub fn init(allocator: std.mem.Allocator, world_seed: i32, world_height: u32) !void {
+var player_previous_chunk_pos: zm.vec.Vec(3, i32) = .{ 0, 0, 0 };
+
+pub fn init(allocator: std.mem.Allocator, world_seed: i32, world_height: u32, world_render_distance: u32) !void {
     world_allocator = allocator;
 
     // Chunk Program init
@@ -41,12 +44,10 @@ pub fn init(allocator: std.mem.Allocator, world_seed: i32, world_height: u32) !v
 
     seed = world_seed;
     height = world_height;
+    render_distance = world_render_distance;
 
     // Noise initialisation
-    gen = znoise.FnlGenerator{
-        .seed = world_seed,
-        .frequency = 0.01
-    };
+    gen = znoise.FnlGenerator{ .seed = world_seed, .frequency = 0.01 };
 }
 
 pub fn deinit() void {
@@ -58,37 +59,6 @@ fn populateChunk(pos: zm.vec.Vec(3, i32)) [CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE]
     var chunk_voxels: [CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE]u32 = undefined;
 
     const chunk_world_pos: zm.vec.Vec(3, i32) = zm.vec.scale(pos, CHUNK_SIZE);
-    // const chunk_world_column: zm.vec.Vec(2, i32) = zm.vec.Vec(2, i32){ chunk_world_pos[0], chunk_world_pos[2] };
-
-    // for (0..CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE) |index| {
-    //     // chunk_voxels[index] = @intCast(index % 2);
-    //     // chunk_voxels[index] = voxels.solid;
-    // }
-
-    // for (0..CHUNK_SIZE) |x| {
-    //     for (0..CHUNK_SIZE) |z| {
-    //         const voxel_column = chunk_world_column + zm.vec.Vec(2, i32){ @intCast(x), @intCast(z) };
-    //
-    //         // const height_value: i32 = @intFromFloat(noise.noise2iVec(seed, voxel_column, 0) * @as(f32, @floatFromInt(height)));
-    //         const height_value: i32 = @intFromFloat(
-    //             gen.noise2(
-    //                 @as(f32, @floatFromInt(voxel_column[0])),
-    //                 @as(f32, @floatFromInt(voxel_column[1])),
-    //             ) * @as(f32, @floatFromInt(height)),
-    //         );
-    //
-    //         for (0..CHUNK_SIZE) |y| {
-    //             const voxel_index: usize = Chunk.getVoxelIndex(x, y, z);
-    //             const voxel_height: i32 = chunk_world_pos[0] + @as(i32, @intCast(y));
-    //
-    //             if (voxel_height < height_value) {
-    //                 chunk_voxels[voxel_index] = voxels.solid;
-    //             } else {
-    //                 chunk_voxels[voxel_index] = voxels.empty;
-    //             }
-    //         }
-    //     }
-    // }
 
     for (0..CHUNK_SIZE) |x| {
         for (0..CHUNK_SIZE) |y| {
@@ -131,7 +101,7 @@ pub fn loadChunk(pos: zm.vec.Vec(3, i32)) !void {
     try chunk_map.put(pos, try Chunk.init(pos, populateChunk(pos)));
 }
 
-pub fn populateAndMeshWorld(render_distance: usize) !void {
+pub fn populateAndMeshWorld() !void {
     for (0..render_distance * 2) |x| {
         for (0..height) |y| {
             for (0..render_distance * 2) |z| {
@@ -194,6 +164,86 @@ pub fn render() void {
     }
 }
 
+pub fn tick() void {
+    const player_chunk_pos: zm.vec.Vec(3, i32) = .{
+        @intFromFloat(player.player_pos[0] / CHUNK_SIZE),
+        @intFromFloat(player.player_pos[1] / CHUNK_SIZE),
+        @intFromFloat(player.player_pos[2] / CHUNK_SIZE),
+    };
+
+    if (std.meta.eql(player_chunk_pos, player_previous_chunk_pos)) {
+        return;
+    }
+
+    player_previous_chunk_pos = player_chunk_pos;
+
+    for (0..render_distance * 2) |x| {
+        for (0..render_distance * 2) |z| {
+            const chunk_column: zm.vec.Vec(2, i32) = .{
+                player_chunk_pos[0] + @as(i32, @intCast(x)) - @as(i32, @intCast(render_distance)),
+                player_chunk_pos[2] + @as(i32, @intCast(z)) - @as(i32, @intCast(render_distance)),
+            };
+
+            for (0..height) |y| {
+                const chunk_pos: zm.vec.Vec(3, i32) = .{
+                    chunk_column[0],
+                    @intCast(y),
+                    chunk_column[1],
+                };
+
+                if (getChunk(chunk_pos) == null) {
+                    loadChunk(chunk_pos) catch |err| {
+                        debug.err("Failed to load chunk {any}. Error: {any}", .{ chunk_pos, err });
+                        continue;
+                    };
+
+                    const neighbours = [_]?*Chunk{
+                        getChunk(chunk_pos + zm.vec.Vec(3, i32){ 1, 0, 0 }),
+                        getChunk(chunk_pos + zm.vec.Vec(3, i32){ -1, 0, 0 }),
+                        getChunk(chunk_pos + zm.vec.Vec(3, i32){ 0, 0, 1 }),
+                        getChunk(chunk_pos + zm.vec.Vec(3, i32){ 0, 0, -1 }),
+                    };
+
+                    for (neighbours) |neighbour| {
+                        if (neighbour != null) {
+                            neighbour.?.remesh_flag = true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    var removeable_chunks = std.ArrayList(zm.vec.Vec(3, i32)).init(world_allocator);
+    defer removeable_chunks.deinit();
+
+    var iter = chunk_map.valueIterator();
+
+    while (iter.next()) |chunk| {
+        if (chunk.pos[0] >= player_chunk_pos[0] + @as(i32, @intCast(render_distance)) or
+            chunk.pos[0] < player_chunk_pos[0] - @as(i32, @intCast(render_distance)) or
+            chunk.pos[2] >= player_chunk_pos[2] + @as(i32, @intCast(render_distance)) or
+            chunk.pos[2] < player_chunk_pos[2] - @as(i32, @intCast(render_distance)))
+        {
+            removeable_chunks.append(chunk.pos) catch |err| {
+                debug.err("Failed to append chunk {any} to removables list. Error: {any}", .{ chunk.pos, err });
+            };
+            continue;
+        }
+
+        if (chunk.ssbo == null or chunk.remesh_flag) {
+            chunk.mesh() catch |err| {
+                debug.err("Failed to mesh chunk {any}. Error: {any}", .{ chunk.pos, err });
+                continue;
+            };
+        }
+    }
+
+    for (removeable_chunks.items) |chunk_pos| {
+        _ = chunk_map.remove(chunk_pos);
+    }
+}
+
 // ##### Face #####
 const Face = packed struct {
     x: u4,
@@ -214,12 +264,15 @@ pub const Chunk = struct {
     model: zm.Mat4f,
     ssbo: ?engine.SSBO,
 
+    remesh_flag: bool,
+
     fn init(pos: zm.vec.Vec(3, i32), chunk_voxels: [CHUNK_SIZE * CHUNK_SIZE * CHUNK_SIZE]u32) !Chunk {
         var chunk: Chunk = undefined;
 
         chunk.pos = pos;
         chunk.voxels = chunk_voxels;
         chunk.ssbo = null;
+        chunk.remesh_flag = false;
 
         chunk.model = zm.Mat4f.translation(
             @floatFromInt(pos[0] * CHUNK_SIZE),
@@ -291,6 +344,8 @@ pub const Chunk = struct {
     }
 
     fn mesh(chunk: *Chunk) !void {
+        chunk.remesh_flag = false;
+
         var faces = std.ArrayList(Face).init(world_allocator);
         defer faces.deinit();
 

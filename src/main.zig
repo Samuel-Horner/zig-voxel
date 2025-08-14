@@ -74,12 +74,12 @@ pub fn main() !void {
     try player.init(.{ 0, 0, 0 }, 10, 0.05, 90);
 
     // ##### World Init #####
-    try world.init(gpa.allocator(), 1337, 4);
+    try world.init(gpa.allocator(), 1337, 4, 4);
     defer world.deinit();
 
     // try world.loadChunk(.{ 0, 0, 0 });
     // try world.meshChunk(.{ 0, 0, 0 });
-    try world.populateAndMeshWorld(8);
+    try world.populateAndMeshWorld();
     
     // ##### Timer Init #####
     var frame_timer = try std.time.Timer.start();
@@ -116,6 +116,9 @@ pub fn main() !void {
 
         // Player Tick
         player.tick(delta_time);
+
+        // World Tick
+        world.tick();
 
         // Render
         engine.clearViewport();
