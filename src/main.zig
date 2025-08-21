@@ -12,36 +12,6 @@ const debug = @import("debug.zig");
 const player = @import("player.zig");
 const args = @import("args.zig");
 
-// const vertex_source: []const u8 = @embedFile("shader/text_vert.glsl");
-// const fragment_source: []const u8 = @embedFile("shader/text_frag.glsl");
-
-const vertex_source: []const u8 =
-    \\  #version 460 core
-    \\  
-    \\  uniform mat4 view;
-    \\  uniform mat4 proj;
-    \\
-    \\  layout (location = 0) in vec3 vertex_pos;
-    \\  
-    \\  void main()
-    \\  {    
-    \\      gl_Position = proj * view * vec4(vertex_pos, 1.);
-    \\  }  
-;
-const fragment_source: []const u8 =
-    \\  #version 460 core
-    \\  
-    \\  out vec4 color;
-    \\
-    \\  void main()
-    \\  {
-    \\      color = vec4(1.);
-    \\  }  
-;
-
-const vertices = [_]f32{ -0.5, -0.5, 0.0, 0.5, -0.5, 0.0, 0.0, 0.5, 0.0 };
-const indicies = [_]c_uint{ 0, 1, 2 };
-
 pub fn main() !void {
     // ##### Allocator Setup #####
     var gpa = std.heap.GeneralPurposeAllocator(.{}).init;
@@ -74,7 +44,7 @@ pub fn main() !void {
     try player.init(.{ 0, 0, 0 }, 10, 0.05, 90);
 
     // ##### World Init #####
-    try world.init(gpa.allocator(), 1337, 4, 16);
+    try world.init(gpa.allocator(), 1337, 4, 8);
     defer world.deinit();
 
     // try world.loadChunk(.{ 0, 0, 0 });
@@ -157,14 +127,6 @@ pub fn main() !void {
     }
 
     debug.log("Finished.", .{});
-}
-
-fn client_main() void {
-    
-}
-
-fn server_main() void {
-
 }
 
 test "test" {

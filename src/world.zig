@@ -227,7 +227,7 @@ pub fn tick() void {
                         getChunk(chunk_pos + zm.vec.Vec(3, i32){ 0, 0, 1 }),
                         getChunk(chunk_pos + zm.vec.Vec(3, i32){ 0, 0, -1 }),
                     };
-
+                    
                     for (neighbours) |neighbour| {
                         if (neighbour != null) {
                             neighbour.?.remesh_flag = true;
